@@ -1,5 +1,6 @@
 # Root logs
 *.log
+.env.production
 
 # IDE
 .idea/

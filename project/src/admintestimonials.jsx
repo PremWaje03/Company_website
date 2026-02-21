@@ -13,6 +13,7 @@ const initialForm = {
 export default function AdminTestimonials() {
   const [testimonials, setTestimonials] = useState([]);
   const [form, setForm] = useState(initialForm);
+  const [editingId, setEditingId] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [status, setStatus] = useState({ type: "", text: "" });
@@ -39,37 +40,62 @@ export default function AdminTestimonials() {
     setForm((prev) => ({ ...prev, [name]: value }));
   };
 
-  const addTestimonial = async () => {
+  const resetForm = () => {
+    setForm(initialForm);
+    setEditingId("");
+  };
+
+  const onSubmit = async () => {
     if (!form.clientName.trim() || !form.message.trim()) {
       setStatus({ type: "error", text: "Client name and message are required." });
       return;
     }
 
+    const payload = {
+      ...form,
+      clientName: form.clientName.trim(),
+      clientRole: form.clientRole.trim(),
+      message: form.message.trim(),
+      photoUrl: form.photoUrl.trim(),
+      rating: Number(form.rating) || 5,
+    };
+
     setSaving(true);
     try {
-      await api.post("/api/admin/testimonials", {
-        ...form,
-        clientName: form.clientName.trim(),
-        clientRole: form.clientRole.trim(),
-        message: form.message.trim(),
-        photoUrl: form.photoUrl.trim(),
-        rating: Number(form.rating) || 5,
-      });
-      setForm(initialForm);
-      setStatus({ type: "success", text: "Testimonial added." });
+      if (editingId) {
+        await api.put(`/api/admin/testimonials/${editingId}`, payload);
+        setStatus({ type: "success", text: "Testimonial updated." });
+      } else {
+        await api.post("/api/admin/testimonials", payload);
+        setStatus({ type: "success", text: "Testimonial added." });
+      }
+      resetForm();
       await loadTestimonials();
     } catch (err) {
-      console.error("Add testimonial error", err);
-      setStatus({ type: "error", text: "Unable to add testimonial." });
+      console.error("Save testimonial error", err);
+      setStatus({ type: "error", text: "Unable to save testimonial." });
     } finally {
       setSaving(false);
     }
+  };
+
+  const startEdit = (item) => {
+    setEditingId(item.id);
+    setForm({
+      clientName: item.clientName || "",
+      clientRole: item.clientRole || "",
+      message: item.message || "",
+      rating: item.rating || 5,
+      photoUrl: item.photoUrl || "",
+    });
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const deleteTestimonial = async (id) => {
     if (!window.confirm("Delete this testimonial?")) return;
     try {
       await api.delete(`/api/admin/testimonials/${id}`);
+      if (editingId === id) resetForm();
       setStatus({ type: "success", text: "Testimonial deleted." });
       await loadTestimonials();
     } catch (err) {
@@ -134,9 +160,16 @@ export default function AdminTestimonials() {
           onChange={handleChange}
         />
 
-        <button className="add-btn" onClick={addTestimonial} disabled={saving}>
-          {saving ? "Saving..." : "+ Add Testimonial"}
-        </button>
+        <div className="admin-actions">
+          <button className="add-btn" onClick={onSubmit} disabled={saving}>
+            {saving ? "Saving..." : editingId ? "Update Testimonial" : "+ Add Testimonial"}
+          </button>
+          {editingId && (
+            <button className="secondary-btn" onClick={resetForm} disabled={saving}>
+              Cancel Edit
+            </button>
+          )}
+        </div>
       </div>
 
       {loading && <p className="section-state">Loading testimonials...</p>}
@@ -159,10 +192,12 @@ export default function AdminTestimonials() {
             </p>
 
             <div className="admin-actions">
+              <button className="secondary-btn" onClick={() => startEdit(item)}>
+                Edit
+              </button>
               <button className="secondary-btn" onClick={() => toggleTestimonial(item.id)}>
                 {item.active ? "Disable" : "Enable"}
               </button>
-
               <button className="danger-btn" onClick={() => deleteTestimonial(item.id)}>
                 Delete
               </button>

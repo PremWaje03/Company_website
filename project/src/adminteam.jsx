@@ -12,6 +12,7 @@ const initialForm = {
 export default function AdminTeam() {
   const [team, setTeam] = useState([]);
   const [form, setForm] = useState(initialForm);
+  const [editingId, setEditingId] = useState("");
   const [imageFile, setImageFile] = useState(null);
   const [imagePreview, setImagePreview] = useState("");
   const [uploadingImage, setUploadingImage] = useState(false);
@@ -52,6 +53,12 @@ export default function AdminTeam() {
     }
     setImageFile(null);
     setImagePreview("");
+  };
+
+  const resetForm = () => {
+    setForm(initialForm);
+    setEditingId("");
+    clearSelectedImage();
   };
 
   const handleImageFileChange = (e) => {
@@ -97,7 +104,7 @@ export default function AdminTeam() {
     }
   };
 
-  const addMember = async () => {
+  const onSubmit = async () => {
     if (!form.name.trim() || !form.role.trim()) {
       setMessage({ type: "error", text: "Name and role are required." });
       return;
@@ -106,27 +113,46 @@ export default function AdminTeam() {
     setSaving(true);
     try {
       const uploadedPhotoUrl = await uploadImageIfNeeded();
-
-      await api.post("/api/admin/team", {
+      const payload = {
         ...form,
         name: form.name.trim(),
         role: form.role.trim(),
         photoUrl: uploadedPhotoUrl,
         bio: form.bio.trim(),
-        active: true,
-      });
+      };
 
-      setForm(initialForm);
-      clearSelectedImage();
-      setMessage({ type: "success", text: "Team member added." });
+      if (editingId) {
+        await api.put(`/api/admin/team/${editingId}`, payload);
+        setMessage({ type: "success", text: "Team member updated." });
+      } else {
+        await api.post("/api/admin/team", {
+          ...payload,
+          active: true,
+        });
+        setMessage({ type: "success", text: "Team member added." });
+      }
+
+      resetForm();
       await loadTeam();
     } catch (err) {
-      console.error("Add team error", err);
-      const errMsg = err?.response?.data?.message || "Unable to add team member.";
+      console.error("Save team error", err);
+      const errMsg = err?.response?.data?.message || "Unable to save team member.";
       setMessage({ type: "error", text: errMsg });
     } finally {
       setSaving(false);
     }
+  };
+
+  const startEdit = (member) => {
+    setEditingId(member.id);
+    clearSelectedImage();
+    setForm({
+      name: member.name || "",
+      role: member.role || "",
+      photoUrl: member.photoUrl || "",
+      bio: member.bio || "",
+    });
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const deleteMember = async (id) => {
@@ -134,6 +160,7 @@ export default function AdminTeam() {
 
     try {
       await api.delete(`/api/admin/team/${id}`);
+      if (editingId === id) resetForm();
       setMessage({ type: "success", text: "Team member deleted." });
       await loadTeam();
     } catch (err) {
@@ -183,9 +210,16 @@ export default function AdminTeam() {
         )}
         <textarea name="bio" placeholder="Short Bio" value={form.bio} onChange={handleChange} />
 
-        <button className="add-btn" onClick={addMember} disabled={saving || uploadingImage}>
-          {saving || uploadingImage ? "Saving..." : "+ Add Member"}
-        </button>
+        <div className="admin-actions">
+          <button className="add-btn" onClick={onSubmit} disabled={saving || uploadingImage}>
+            {saving || uploadingImage ? "Saving..." : editingId ? "Update Member" : "+ Add Member"}
+          </button>
+          {editingId && (
+            <button className="secondary-btn" onClick={resetForm} disabled={saving || uploadingImage}>
+              Cancel Edit
+            </button>
+          )}
+        </div>
       </div>
 
       {loading && <p className="section-state">Loading team members...</p>}
@@ -214,6 +248,9 @@ export default function AdminTeam() {
             </p>
 
             <div className="admin-actions">
+              <button className="secondary-btn" onClick={() => startEdit(member)}>
+                Edit
+              </button>
               <button className="secondary-btn" onClick={() => toggleMember(member.id)}>
                 {member.active ? "Disable" : "Enable"}
               </button>

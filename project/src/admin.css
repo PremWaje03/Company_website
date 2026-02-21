@@ -249,6 +249,24 @@
   overflow-x: auto;
 }
 
+.admin-toolbar {
+  display: grid;
+  grid-template-columns: 1fr 220px;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.admin-toolbar input,
+.admin-toolbar select {
+  border: 1px solid #d5e1ef;
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 14px;
+  width: 100%;
+  background: #fbfdff;
+  font-family: inherit;
+}
+
 .admin-table {
   width: 100%;
   border-collapse: collapse;
@@ -274,6 +292,19 @@
   font-size: 13px;
 }
 
+.pagination-row {
+  margin-top: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.pagination-row span {
+  color: #334155;
+  font-weight: 600;
+}
+
 @media (max-width: 980px) {
   .admin-dashboard {
     grid-template-columns: 1fr;
@@ -291,5 +322,9 @@
   .module-header {
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .admin-toolbar {
+    grid-template-columns: 1fr;
   }
 }

@@ -157,3 +157,41 @@ Before pushing:
 2. Use strong production values for `JWT_SECRET` and admin credentials.
 3. Keep `uploads/` and logs ignored (already configured in backend `.gitignore`).
 4. Commit from project root with both app folders and `docker-compose.yml`.
+
+## 10. Production Deployment (Single Domain)
+
+This project includes:
+- `docker-compose.prod.yml`
+- `deploy/nginx/prod.conf`
+- `.env.production.example`
+
+Steps:
+1. Copy `.env.production.example` to `.env.production` and set real values.
+2. Set your domain in `APP_CORS_ALLOWED_ORIGINS`.
+3. Deploy with:
+
+```powershell
+docker compose -f docker-compose.prod.yml --env-file .env.production up -d --build
+```
+
+In production mode:
+- `proxy` serves frontend and forwards `/api/*` + `/uploads/*` to backend.
+- Backend and MongoDB are internal services (not exposed directly).
+
+## 11. CI Pipeline
+
+GitHub Actions workflow is available at:
+- `.github/workflows/ci.yml`
+
+On push/pull request to `main`, it runs:
+1. Frontend lint and build
+2. Backend compile
+3. Docker image build checks for frontend and backend
+
+## 12. Operations
+
+See `docs/OPERATIONS.md` for:
+- MongoDB backup/restore commands
+- Security hardening checklist
+- Monitoring recommendations
+- Cloud media migration notes

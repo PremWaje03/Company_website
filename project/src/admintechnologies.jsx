@@ -2,9 +2,12 @@ import { useEffect, useState } from "react";
 import api from "./api";
 import "./admin.css";
 
+const initialForm = { name: "", icon: "" };
+
 export default function AdminTechnologies() {
   const [technologies, setTechnologies] = useState([]);
-  const [form, setForm] = useState({ name: "", icon: "" });
+  const [form, setForm] = useState(initialForm);
+  const [editingId, setEditingId] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState({ type: "", text: "" });
@@ -27,10 +30,15 @@ export default function AdminTechnologies() {
   }, []);
 
   const handleChange = (e) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
+    setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
   };
 
-  const addTechnology = async () => {
+  const resetForm = () => {
+    setForm(initialForm);
+    setEditingId("");
+  };
+
+  const onSubmit = async () => {
     if (!form.name.trim()) {
       setMessage({ type: "error", text: "Technology name is required." });
       return;
@@ -38,19 +46,36 @@ export default function AdminTechnologies() {
 
     setSaving(true);
     try {
-      await api.post("/api/admin/technologies", {
+      const payload = {
         name: form.name.trim(),
         icon: form.icon.trim(),
-      });
-      setForm({ name: "", icon: "" });
-      setMessage({ type: "success", text: "Technology added." });
+      };
+
+      if (editingId) {
+        await api.put(`/api/admin/technologies/${editingId}`, payload);
+        setMessage({ type: "success", text: "Technology updated." });
+      } else {
+        await api.post("/api/admin/technologies", payload);
+        setMessage({ type: "success", text: "Technology added." });
+      }
+
+      resetForm();
       await loadTechnologies();
     } catch (err) {
-      console.error("Add technology error", err);
-      setMessage({ type: "error", text: "Unable to add technology." });
+      console.error("Save technology error", err);
+      setMessage({ type: "error", text: "Unable to save technology." });
     } finally {
       setSaving(false);
     }
+  };
+
+  const startEdit = (tech) => {
+    setEditingId(tech.id);
+    setForm({
+      name: tech.name || "",
+      icon: tech.icon || "",
+    });
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const deleteTechnology = async (id) => {
@@ -58,6 +83,7 @@ export default function AdminTechnologies() {
 
     try {
       await api.delete(`/api/admin/technologies/${id}`);
+      if (editingId === id) resetForm();
       setMessage({ type: "success", text: "Technology deleted." });
       await loadTechnologies();
     } catch (err) {
@@ -77,7 +103,7 @@ export default function AdminTechnologies() {
   };
 
   return (
-    <div className="admin-section">
+    <section className="admin-section">
       <div className="module-header">
         <h2>Manage Technologies</h2>
         <button className="secondary-btn" onClick={loadTechnologies}>
@@ -101,15 +127,20 @@ export default function AdminTechnologies() {
           onChange={handleChange}
         />
 
-        <button className="add-btn" onClick={addTechnology} disabled={saving}>
-          {saving ? "Saving..." : "+ Add Technology"}
-        </button>
+        <div className="admin-actions">
+          <button className="add-btn" onClick={onSubmit} disabled={saving}>
+            {saving ? "Saving..." : editingId ? "Update Technology" : "+ Add Technology"}
+          </button>
+          {editingId && (
+            <button className="secondary-btn" onClick={resetForm} disabled={saving}>
+              Cancel Edit
+            </button>
+          )}
+        </div>
       </div>
 
       {loading && <p className="section-state">Loading technologies...</p>}
-      {!loading && technologies.length === 0 && (
-        <p className="empty-text">No technologies created yet.</p>
-      )}
+      {!loading && technologies.length === 0 && <p className="empty-text">No technologies created yet.</p>}
 
       <div className="admin-list card-grid">
         {technologies.map((tech) => (
@@ -124,23 +155,19 @@ export default function AdminTechnologies() {
             </p>
 
             <div className="admin-actions">
-              <button
-                className="secondary-btn"
-                onClick={() => toggleTechnology(tech.id)}
-              >
+              <button className="secondary-btn" onClick={() => startEdit(tech)}>
+                Edit
+              </button>
+              <button className="secondary-btn" onClick={() => toggleTechnology(tech.id)}>
                 {tech.active ? "Disable" : "Enable"}
               </button>
-
-              <button
-                className="danger-btn"
-                onClick={() => deleteTechnology(tech.id)}
-              >
+              <button className="danger-btn" onClick={() => deleteTechnology(tech.id)}>
                 Delete
               </button>
             </div>
           </div>
         ))}
       </div>
-    </div>
+    </section>
   );
 }

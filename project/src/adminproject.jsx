@@ -11,9 +11,12 @@ const initialForm = {
   featured: false,
 };
 
+const listToCsv = (items) => (Array.isArray(items) ? items.join(", ") : "");
+
 export default function AdminProjects() {
   const [projects, setProjects] = useState([]);
   const [form, setForm] = useState(initialForm);
+  const [editingId, setEditingId] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState({ type: "", text: "" });
@@ -43,7 +46,18 @@ export default function AdminProjects() {
     }));
   };
 
-  const addProject = async () => {
+  const resetForm = () => {
+    setForm(initialForm);
+    setEditingId("");
+  };
+
+  const parseTechnologies = (value) =>
+    value
+      .split(",")
+      .map((t) => t.trim())
+      .filter(Boolean);
+
+  const onSubmit = async () => {
     if (!form.title.trim() || !form.description.trim()) {
       setMessage({ type: "error", text: "Title and description are required." });
       return;
@@ -55,24 +69,39 @@ export default function AdminProjects() {
       imageUrl: form.imageUrl.trim(),
       projectUrl: form.projectUrl.trim(),
       featured: form.featured,
-      technologies: form.technologies
-        .split(",")
-        .map((t) => t.trim())
-        .filter(Boolean),
+      technologies: parseTechnologies(form.technologies),
     };
 
     setSaving(true);
     try {
-      await api.post("/api/admin/projects", payload);
-      setForm(initialForm);
-      setMessage({ type: "success", text: "Project added." });
+      if (editingId) {
+        await api.put(`/api/admin/projects/${editingId}`, payload);
+        setMessage({ type: "success", text: "Project updated." });
+      } else {
+        await api.post("/api/admin/projects", payload);
+        setMessage({ type: "success", text: "Project added." });
+      }
+      resetForm();
       await loadProjects();
     } catch (err) {
-      console.error("Add project error", err);
-      setMessage({ type: "error", text: "Unable to add project." });
+      console.error("Save project error", err);
+      setMessage({ type: "error", text: "Unable to save project." });
     } finally {
       setSaving(false);
     }
+  };
+
+  const startEdit = (project) => {
+    setEditingId(project.id);
+    setForm({
+      title: project.title || "",
+      description: project.description || "",
+      imageUrl: project.imageUrl || "",
+      projectUrl: project.projectUrl || "",
+      technologies: listToCsv(project.technologies),
+      featured: Boolean(project.featured),
+    });
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const deleteProject = async (id) => {
@@ -80,6 +109,7 @@ export default function AdminProjects() {
 
     try {
       await api.delete(`/api/admin/projects/${id}`);
+      if (editingId === id) resetForm();
       setMessage({ type: "success", text: "Project deleted." });
       await loadProjects();
     } catch (err) {
@@ -151,15 +181,20 @@ export default function AdminProjects() {
           Featured project
         </label>
 
-        <button className="add-btn" onClick={addProject} disabled={saving}>
-          {saving ? "Saving..." : "+ Add Project"}
-        </button>
+        <div className="admin-actions">
+          <button className="add-btn" onClick={onSubmit} disabled={saving}>
+            {saving ? "Saving..." : editingId ? "Update Project" : "+ Add Project"}
+          </button>
+          {editingId && (
+            <button className="secondary-btn" onClick={resetForm} disabled={saving}>
+              Cancel Edit
+            </button>
+          )}
+        </div>
       </div>
 
       {loading && <p className="section-state">Loading projects...</p>}
-      {!loading && projects.length === 0 && (
-        <p className="empty-text">No projects created yet.</p>
-      )}
+      {!loading && projects.length === 0 && <p className="empty-text">No projects created yet.</p>}
 
       <div className="admin-list card-grid">
         {projects.map((project) => (
@@ -180,6 +215,9 @@ export default function AdminProjects() {
             </p>
 
             <div className="admin-actions">
+              <button className="secondary-btn" onClick={() => startEdit(project)}>
+                Edit
+              </button>
               <button className="secondary-btn" onClick={() => toggleProject(project.id)}>
                 {project.active ? "Disable" : "Enable"}
               </button>

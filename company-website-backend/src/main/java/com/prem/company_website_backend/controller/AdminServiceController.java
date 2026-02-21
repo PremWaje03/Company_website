@@ -28,6 +28,7 @@ public class AdminServiceController {
         ServiceEntity entity = new ServiceEntity();
         entity.setTitle(dto.getTitle());
         entity.setDescription(dto.getDescription());
+        entity.setIcon(dto.getIcon());
 
         return new ApiResponse<>(
                 true,

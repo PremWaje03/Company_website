@@ -3,7 +3,9 @@ import axios from "axios";
 const TOKEN_KEY = "adminToken";
 
 export const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL?.replace(/\/$/, "") || "http://localhost:8081";
+  typeof import.meta.env.VITE_API_BASE_URL === "string"
+    ? import.meta.env.VITE_API_BASE_URL.replace(/\/$/, "")
+    : "http://localhost:8081";
 
 const api = axios.create({
   baseURL: API_BASE_URL,

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import api from "./api";
 import "./admin.css";
 
@@ -8,10 +8,20 @@ const STATUS_OPTIONS = [
   { value: "RESOLVED", label: "Resolved" },
 ];
 
+const PAGE_SIZE = 8;
+
+const normalizeStatusValue = (value) => {
+  if (!value) return "NEW";
+  return value.replace(/-/g, "_").replace(/\s+/g, "_").toUpperCase();
+};
+
 export default function AdminContact() {
   const [contacts, setContacts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState({ type: "", text: "" });
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("ALL");
+  const [page, setPage] = useState(1);
 
   const loadContacts = async () => {
     try {
@@ -29,6 +39,36 @@ export default function AdminContact() {
   useEffect(() => {
     loadContacts();
   }, []);
+
+  const filteredContacts = useMemo(() => {
+    const query = search.trim().toLowerCase();
+
+    return contacts.filter((c) => {
+      const normalizedStatus = normalizeStatusValue(c.status);
+      const statusMatches = statusFilter === "ALL" || normalizedStatus === statusFilter;
+      const textMatches =
+        !query ||
+        c.name?.toLowerCase().includes(query) ||
+        c.email?.toLowerCase().includes(query) ||
+        c.phone?.toLowerCase().includes(query) ||
+        c.message?.toLowerCase().includes(query);
+
+      return statusMatches && textMatches;
+    });
+  }, [contacts, search, statusFilter]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredContacts.length / PAGE_SIZE));
+  const paginatedContacts = filteredContacts.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+
+  useEffect(() => {
+    setPage(1);
+  }, [search, statusFilter]);
+
+  useEffect(() => {
+    if (page > totalPages) {
+      setPage(totalPages);
+    }
+  }, [page, totalPages]);
 
   const deleteContact = async (id) => {
     if (!window.confirm("Delete this message?")) return;
@@ -55,11 +95,6 @@ export default function AdminContact() {
     }
   };
 
-  const normalizeStatusValue = (value) => {
-    if (!value) return "NEW";
-    return value.replace(/-/g, "_").replace(/\s+/g, "_").toUpperCase();
-  };
-
   return (
     <section className="admin-section">
       <div className="module-header">
@@ -71,52 +106,93 @@ export default function AdminContact() {
 
       {message.text && <p className={`ui-alert ${message.type}`}>{message.text}</p>}
 
+      <div className="admin-toolbar">
+        <input
+          type="text"
+          placeholder="Search by name, email, phone, or message"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+        <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+          <option value="ALL">All Statuses</option>
+          {STATUS_OPTIONS.map((status) => (
+            <option key={status.value} value={status.value}>
+              {status.label}
+            </option>
+          ))}
+        </select>
+      </div>
+
       {loading && <p className="section-state">Loading messages...</p>}
-      {!loading && contacts.length === 0 && <p className="empty-text">No messages yet.</p>}
+      {!loading && filteredContacts.length === 0 && (
+        <p className="empty-text">No messages found for current filters.</p>
+      )}
 
-      {!loading && contacts.length > 0 && (
-        <div className="table-wrap">
-          <table className="admin-table">
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Email</th>
-                <th>Phone</th>
-                <th>Message</th>
-                <th>Status</th>
-                <th>Action</th>
-              </tr>
-            </thead>
-
-            <tbody>
-              {contacts.map((c) => (
-                <tr key={c.id}>
-                  <td>{c.name}</td>
-                  <td>{c.email}</td>
-                  <td>{c.phone || "-"}</td>
-                  <td>{c.message}</td>
-                  <td>
-                    <select
-                      value={normalizeStatusValue(c.status)}
-                      onChange={(e) => updateStatus(c.id, e.target.value)}
-                    >
-                      {STATUS_OPTIONS.map((status) => (
-                        <option key={status.value} value={status.value}>
-                          {status.label}
-                        </option>
-                      ))}
-                    </select>
-                  </td>
-                  <td>
-                    <button className="danger-btn" onClick={() => deleteContact(c.id)}>
-                      Delete
-                    </button>
-                  </td>
+      {!loading && filteredContacts.length > 0 && (
+        <>
+          <div className="table-wrap">
+            <table className="admin-table">
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Email</th>
+                  <th>Phone</th>
+                  <th>Message</th>
+                  <th>Status</th>
+                  <th>Action</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+
+              <tbody>
+                {paginatedContacts.map((c) => (
+                  <tr key={c.id}>
+                    <td>{c.name}</td>
+                    <td>{c.email}</td>
+                    <td>{c.phone || "-"}</td>
+                    <td>{c.message}</td>
+                    <td>
+                      <select
+                        value={normalizeStatusValue(c.status)}
+                        onChange={(e) => updateStatus(c.id, e.target.value)}
+                      >
+                        {STATUS_OPTIONS.map((status) => (
+                          <option key={status.value} value={status.value}>
+                            {status.label}
+                          </option>
+                        ))}
+                      </select>
+                    </td>
+                    <td>
+                      <button className="danger-btn" onClick={() => deleteContact(c.id)}>
+                        Delete
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="pagination-row">
+            <button
+              className="secondary-btn"
+              onClick={() => setPage((prev) => Math.max(1, prev - 1))}
+              disabled={page === 1}
+            >
+              Previous
+            </button>
+            <span>
+              Page {page} of {totalPages}
+            </span>
+            <button
+              className="secondary-btn"
+              onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
+              disabled={page === totalPages}
+            >
+              Next
+            </button>
+          </div>
+        </>
       )}
     </section>
   );

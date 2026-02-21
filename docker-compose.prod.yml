@@ -1,0 +1,55 @@
+services:
+  mongodb:
+    image: mongo:7.0
+    container_name: company-mongodb
+    restart: unless-stopped
+    volumes:
+      - mongo_data:/data/db
+
+  backend:
+    build:
+      context: ./company-website-backend
+      dockerfile: Dockerfile
+    container_name: company-backend
+    restart: unless-stopped
+    depends_on:
+      - mongodb
+    env_file:
+      - .env.production
+    environment:
+      SPRING_DATA_MONGODB_URI: ${SPRING_DATA_MONGODB_URI}
+      APP_CORS_ALLOWED_ORIGINS: ${APP_CORS_ALLOWED_ORIGINS}
+      APP_UPLOAD_DIR: /app/uploads
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRATION: ${JWT_EXPIRATION}
+      APP_ADMIN_EMAIL: ${APP_ADMIN_EMAIL}
+      APP_ADMIN_PASSWORD: ${APP_ADMIN_PASSWORD}
+    volumes:
+      - backend_uploads:/app/uploads
+
+  frontend:
+    build:
+      context: ./project
+      dockerfile: Dockerfile
+      args:
+        VITE_API_BASE_URL: ""
+    container_name: company-frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+
+  proxy:
+    image: nginx:1.28-alpine
+    container_name: company-proxy
+    restart: unless-stopped
+    depends_on:
+      - frontend
+      - backend
+    volumes:
+      - ./deploy/nginx/prod.conf:/etc/nginx/conf.d/default.conf:ro
+    ports:
+      - "80:80"
+
+volumes:
+  mongo_data:
+  backend_uploads:
