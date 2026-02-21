@@ -1,0 +1,19 @@
+# Root logs
+*.log
+
+# IDE
+.idea/
+.vscode/
+
+# Backup folders
+.backup-company-backend-git/
+
+# Frontend
+project/node_modules/
+project/dist/
+project/.env
+
+# Backend
+company-website-backend/target/
+company-website-backend/uploads/
+company-website-backend/.env

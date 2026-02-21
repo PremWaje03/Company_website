@@ -1,0 +1,12 @@
+target
+uploads
+*.log
+.git
+.idea
+.vscode
+run8082-out.log
+run8082-err.log
+smoke-out.log
+smoke-err.log
+verify-out.log
+verify-err.log

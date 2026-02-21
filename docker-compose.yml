@@ -1,0 +1,48 @@
+services:
+  mongodb:
+    image: mongo:7.0
+    container_name: company-mongodb
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+
+  backend:
+    build:
+      context: ./company-website-backend
+      dockerfile: Dockerfile
+    container_name: company-backend
+    restart: unless-stopped
+    depends_on:
+      - mongodb
+    environment:
+      SERVER_PORT: 8081
+      SPRING_DATA_MONGODB_URI: mongodb://mongodb:27017/companydb
+      APP_CORS_ALLOWED_ORIGINS: http://localhost:5173,http://127.0.0.1:5173
+      APP_UPLOAD_DIR: /app/uploads
+      JWT_SECRET: company-secret-key-company-secret-key-company
+      JWT_EXPIRATION: 18000000
+      APP_ADMIN_EMAIL: admin@gmail.com
+      APP_ADMIN_PASSWORD: admin123
+    ports:
+      - "8081:8081"
+    volumes:
+      - backend_uploads:/app/uploads
+
+  frontend:
+    build:
+      context: ./project
+      dockerfile: Dockerfile
+      args:
+        VITE_API_BASE_URL: http://localhost:8081
+    container_name: company-frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "5173:80"
+
+volumes:
+  mongo_data:
+  backend_uploads:
