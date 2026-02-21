@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import api from "./api";
+import { resolveFaIcon } from "./iconResolver";
 import "./technologies.css";
 
 export default function Technologies() {
@@ -42,7 +44,7 @@ export default function Technologies() {
         {techs.map((tech) => (
           <article key={tech.id} className="tech-card">
             <div className="icon-wrap">
-              <i className={`fa ${tech.icon || "fa-code"}`} />
+              <FontAwesomeIcon icon={resolveFaIcon(tech.icon)} />
             </div>
             <p>{tech.name}</p>
           </article>

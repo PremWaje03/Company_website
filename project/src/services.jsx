@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import api from "./api";
+import { resolveFaIcon } from "./iconResolver";
 import "./services.css";
 
 export default function Services() {
@@ -41,7 +43,9 @@ export default function Services() {
 
         {services.map((service) => (
           <article className="service-card" key={service.id}>
-            <div className="service-icon">{service.icon ? <i className={`fa ${service.icon}`} /> : "•"}</div>
+            <div className="service-icon">
+              <FontAwesomeIcon icon={resolveFaIcon(service.icon)} />
+            </div>
             <h3>{service.title}</h3>
             <p>{service.description}</p>
           </article>
